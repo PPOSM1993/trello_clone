@@ -65,3 +65,31 @@ npm run dev
   /types            # Tipos de TypeScript
 ```
 
+---
+
+## 📌 Uso
+
+- Regístrate o inicia sesión con tu cuenta.
+- Crea un tablero.
+- Añade listas dentro del tablero.
+- Añade tareas dentro de cada lista.
+- Arrastra y suelta listas y tareas para reorganizarlas.
+- Todos los cambios se guardan automáticamente en Supabase.
+
+---
+
+## 🤝 Contribuciones
+
+- Contribuciones son bienvenidas:
+- Haz un fork del proyecto.
+- Crea tu feature branch (git checkout -b feature/nueva-funcionalidad).
+- Haz commit de tus cambios (git commit -m 'Agrega nueva funcionalidad').
+- Push a la rama (git push origin feature/nueva-funcionalidad).
+- Abre un Pull Request.
+
+---
+
+## 📄 Licencia
+
+Este proyecto está bajo la licencia MIT.
+Ver el archivo LICENSE para más detalles.
