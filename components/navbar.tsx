@@ -22,7 +22,7 @@ export default function Navbar() {
                     <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                             <Trello className="h-6 w-6 sm:h-8 text-blue-600" />
-                            <span className="text-xl sm:text-2xl font-bold text-gray-900">Trello Clone</span>
+                            <span className="text-xl sm:text-2xl font-bold text-gray-900">Trello</span>
                         </div>
                         <div className="flex items-center space-x-2 sm:span-x-4">
                             <UserButton/>
