@@ -15,7 +15,7 @@ export function useBoards() {
 
 
     useEffect(() => {
-        if(user) {
+        if (user) {
             loadBoards();
         }
     }, [user, supabase]);
@@ -63,4 +63,15 @@ export function useBoards() {
     }
 
     return { boards, loading, error, createBoard, loadBoards };
+}
+
+export function useBoard(boardId: string) {
+
+    const { supabase } = useSupabase();
+    const { user } = useUser();
+
+    const [board, setBoard] = useState<Board | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
 }
