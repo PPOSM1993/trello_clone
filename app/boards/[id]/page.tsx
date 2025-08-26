@@ -24,6 +24,8 @@ export default function BoardPage() {
     const [newTitle, setNewTitle] = useState("");
     const [newColor, setNewColor] = useState("");
 
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
+
 
     async function handleUpdateBoard(e: React.FormEvent) {
         e.preventDefault();
@@ -49,6 +51,8 @@ export default function BoardPage() {
                     setNewColor(board?.color || "");
                     setIsEditingTitle(true);
                 }}
+                onFilterclick={() => setIsFilterOpen(true)}
+                filterCount={2}
             />
 
             <Dialog open={isEditingTitle} onOpenChange={setIsEditingTitle}>
@@ -111,6 +115,15 @@ export default function BoardPage() {
                         </div>
                     </form>
 
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                <DialogContent className="w-[95wv] mx-w-[425px] mx-auto">
+                    <DialogHeader>
+                        <DialogTitle>Filter Tasks</DialogTitle>
+                        <p>Filter tasks by status, priority, and more</p>
+                    </DialogHeader>
                 </DialogContent>
             </Dialog>
 
