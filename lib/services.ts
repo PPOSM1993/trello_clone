@@ -179,6 +179,7 @@ export const boardDataService = {
 
     return {
       board,
+      columns,
       columnsWithTasks,
     };
   },

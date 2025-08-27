@@ -5,6 +5,9 @@ import { Board, Column } from "../supabase/models";
 import { useEffect, useState } from "react";
 import { useSupabase } from "../supabase/supabaseProvider";
 
+
+
+
 export function useBoards() {
 
     const { user } = useUser();
