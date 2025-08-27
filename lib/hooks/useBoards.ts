@@ -1,6 +1,6 @@
 "use client";
 import { useUser } from "@clerk/nextjs";
-import { boardDataService, boardService } from "../services";
+import { boardDataService, boardService, taskService } from "../services";
 import { Board, Column } from "../supabase/models";
 import { useEffect, useState } from "react";
 import { useSupabase } from "../supabase/supabaseProvider";
@@ -12,6 +12,7 @@ export function useBoards() {
 
     const { user } = useUser();
     const { supabase } = useSupabase();
+
     const [boards, setBoards] = useState<Board[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -65,6 +66,8 @@ export function useBoards() {
     return { boards, loading, error, createBoard, loadBoards };
 }
 
+
+
 export function useBoard(boardId: string) {
 
     const { supabase } = useSupabase();
@@ -114,11 +117,47 @@ export function useBoard(boardId: string) {
         }
     }
 
+    async function createRealTask(
+        columnId: string,
+        taskData: {
+            title: string;
+            description?: string;
+            assignee?: string;
+            dueDate?: string;
+            priority?: "low" | "medium" | "high";
+        }
+    ) {
+        try {
+            const newTask = await taskService.createTask(supabase!, {
+                title: taskData.title,
+                description: taskData.description || null,
+                assignee: taskData.assignee || null,
+                due_date: taskData.dueDate || null,
+                column_id: columnId,
+                sort_order:
+                    columns.find((col) => col.id === columnId)?.tasks.length || 0,
+                priority: taskData.priority || "medium",
+            });
+
+            setColumns((prev) =>
+                prev.map((col) =>
+                    col.id === columnId ? { ...col, tasks: [...col.tasks, newTask] } : col
+                )
+            );
+
+            return newTask;
+        } catch (err) {
+            setError(
+                err instanceof Error ? err.message : "Failed to create the task."
+            );
+        }
+    }
     return {
         board,
         columns,
         loading,
         error,
         updateBoard,
+        createRealTask
     }
 }
