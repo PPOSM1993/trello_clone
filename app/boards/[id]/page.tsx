@@ -8,10 +8,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Calendar, MoreHorizontal, Plus, Pointer, User } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 
 import { useBoard } from "@/lib/hooks/useBoards";
-import { Plus } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 import {
@@ -21,7 +22,55 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { ColumnWithTasks } from "@/lib/supabase/models";
+import { taskService } from "@/lib/services";
 
+
+function Column({
+    column,
+    children,
+    onCreateTask,
+    onEditColumn
+}: {
+    column: ColumnWithTasks,
+    children: React.ReactNode,
+    onCreateTask: (taskData: any) => Promise<void>;
+
+    onEditColumn: (column: ColumnWithTasks) => void
+}) {
+    return (
+        <>
+            <div className="w-full lg:flex-shrink-0 lg:w-80">
+                <div className="bg-white rounded-lg shadow-sm border">
+                    <div className="p-3 sm:p-4 border-b">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2 min-w-0">
+                                <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
+                                    {column.title}
+                                </h3>
+                                <Badge variant="secondary" className="text-xs flex-shrink-0">
+                                    {column.tasks.length}
+                                </Badge>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="flex-shrink-0"
+                                onClick={() => onEditColumn(column)}
+                            >
+                                <MoreHorizontal />
+                            </Button>
+                        </div>
+                    </div>
+                    {/* Column Content */}
+                    <div className="p-2">
+                        {children}
+                    </div>
+                </div>
+            </div>
+        </>
+    )
+}
 
 export default function BoardPage() {
     const { id } = useParams(); // ✅ sin tipos
@@ -30,7 +79,8 @@ export default function BoardPage() {
     const {
         board,
         updateBoard,
-        columns
+        createRealTask,
+        columns,
     } = useBoard(id);
 
 
@@ -39,10 +89,6 @@ export default function BoardPage() {
     const [newColor, setNewColor] = useState("");
 
     const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-    const handleCreateTask = () => {
-        console.log("handleCreateTask");
-    }
 
     async function handleUpdateBoard(e: React.FormEvent) {
         e.preventDefault();
@@ -56,6 +102,44 @@ export default function BoardPage() {
             });
             setIsEditingTitle(false);
         } catch { }
+    }
+
+    async function createTask(taskData: {
+        title: string;
+        description?: string;
+        assignee?: string;
+        dueDate?: string;
+        priority: "low" | "medium" | "high";
+    }) {
+        const targetColumn = columns[0];
+        if (!targetColumn) {
+            throw new Error("No column available to add task");
+        }
+
+        await createRealTask(targetColumn.id, taskData);
+    }
+
+    async function handleCreateTask(e: any) {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const taskData = {
+            title: formData.get("title") as string,
+            description: (formData.get("description") as string) || undefined,
+            assignee: (formData.get("assignee") as string) || undefined,
+            dueDate: (formData.get("dueDate") as string) || undefined,
+            priority:
+                (formData.get("priority") as "low" | "medium" | "high") || "medium",
+        };
+
+
+        if (taskData.title.trim()) {
+            await createTask(taskData);
+
+            const trigger = document.querySelector(
+                '[data-state="open"'
+            ) as HTMLElement;
+            if (trigger) trigger.click();
+        }
     }
 
 
@@ -257,8 +341,28 @@ export default function BoardPage() {
                 </div>
 
                 {/* Boards Columns */}
-                <div>
-                
+                <div               className="flex flex-col lg:flex-row lg:space-x-6 lg:overflow-x-auto 
+            lg:pb-6 lg:px-2 lg:-mx-2 lg:[&::-webkit-scrollbar]:h-2 
+            lg:[&::-webkit-scrollbar-track]:bg-gray-100 
+            lg:[&::-webkit-scrollbar-thumb]:bg-gray-300 lg:[&::-webkit-scrollbar-thumb]:rounded-full 
+            space-y-4 lg:space-y-0">
+                    {columns.map((column, key) => (
+                        <Column
+                            key={key}
+                            column={column}
+                            onCreateTask={() => { }}
+                            onEditColumn={() => { }}
+                        >
+
+                            <div className="space-y-3">
+                                {column.tasks.map((task, key) => (
+
+                                    <div key={key}>{task.title}</div>
+                                ))}
+                            </div>
+
+                        </Column>
+                    ))}
                 </div>
             </main>
         </div>
