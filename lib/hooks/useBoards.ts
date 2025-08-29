@@ -4,7 +4,7 @@ import { boardDataService, boardService, taskService } from "../services";
 import { Board, Column } from "../supabase/models";
 import { useEffect, useState } from "react";
 import { useSupabase } from "../supabase/supabaseProvider";
-
+import { ColumnWithTasks } from "../supabase/models";
 
 
 
@@ -15,6 +15,8 @@ export function useBoards() {
 
     const [boards, setBoards] = useState<Board[]>([]);
     const [loading, setLoading] = useState(true);
+    const [columns, setColumns] = useState<ColumnWithTasks[]>([]);
+
     const [error, setError] = useState<string | null>(null);
 
 
@@ -158,6 +160,7 @@ export function useBoard(boardId: string) {
         loading,
         error,
         updateBoard,
-        createRealTask
+        createRealTask,
+        setColumns
     }
 }
