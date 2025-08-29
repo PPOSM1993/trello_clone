@@ -34,6 +34,7 @@ import {
     PointerSensor,
     rectIntersection,
     useDroppable,
+
     useSensor,
     useSensors,
 } from "@dnd-kit/core";
@@ -196,6 +197,7 @@ function SortableTask({ task }: { task: Task }) {
                 return "bg-yellow-500";
         }
     }
+
     return (
         <div ref={setNodeRef} style={styles} {...listeners} {...attributes}>
             <Card className="cursor-pointer hover:shadow-md transition-shadow">
@@ -242,6 +244,64 @@ function SortableTask({ task }: { task: Task }) {
     );
 }
 
+function TaskOverlay({ task }: { task: Task }) {
+    function getPriorityColor(priority: "low" | "medium" | "high"): string {
+        switch (priority) {
+            case "high":
+                return "bg-red-500";
+            case "medium":
+                return "bg-yellow-500";
+            case "low":
+                return "bg-green-500";
+            default:
+                return "bg-yellow-500";
+        }
+    }
+    return (
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardContent className="p-3 sm:p-4">
+                <div className="space-y-2 sm:space-y-3">
+                    {/* Task Header */}
+                    <div className="flex items-start justify-between">
+                        <h4 className="font-medium text-gray-900 text-sm leading-tight flex-1 min-w-0 pr-2">
+                            {task.title}
+                        </h4>
+                    </div>
+
+                    {/* Task Description */}
+                    <p className="text-xs text-gray-600 line-clamp-2">
+                        {task.description || "No description."}
+                    </p>
+
+                    {/* Task Meta */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-1 sm:space-x-2 min-w-0">
+                            {task.assignee && (
+                                <div className="flex items-center space-x-1 text-xs text-gray-500">
+                                    <User className="h-3 w-3" />
+                                    <span className="truncate">{task.assignee}</span>
+                                </div>
+                            )}
+                            {task.due_date && (
+                                <div className="flex items-center space-x-1 text-xs text-gray-500">
+                                    <Calendar className="h-3 w-3" />
+                                    <span className="truncate">{task.due_date}</span>
+                                </div>
+                            )}
+                        </div>
+                        <div
+                            className={`w-2 h-2 rounded-full flex-shrink-0 ${getPriorityColor(
+                                task.priority
+                            )}`}
+                        />
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+
 
 export default function BoardPage() {
     const { id } = useParams(); // ✅ sin tipos
@@ -252,7 +312,8 @@ export default function BoardPage() {
         updateBoard,
         createRealTask,
         columns,
-        setColumns
+        setColumns,
+        moveTask
     } = useBoard(id);
 
 
@@ -261,6 +322,9 @@ export default function BoardPage() {
     const [newColor, setNewColor] = useState("");
 
     const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [isCreatingColumn, setIsCreatingColumn] = useState(false);
+    const [isEditingColumn, setIsEditingColumn] = useState(false);
+    const [newColumnTitle, setNewColumnTitle] = useState("");
 
     const [activeTask, setActiveTask] = useState<Task | null>(null);
 
@@ -383,258 +447,313 @@ export default function BoardPage() {
 
     }
 
-    function handleDragEnd(event: DragEndEvent) {
+    async function handleDragEnd(event: DragEndEvent) {
+        const { active, over } = event;
+        if (!over) return;
 
-        const activeId = active.id as string;
+        const taskId = active.id as string;
         const overId = over.id as string;
 
-        const sourceColumn = columns.find((col) =>
-            col.tasks.some((task) => task.id === activeId)
-        );
+        const targetColumn = columns.find((col) => col.id === overId);
+        if (targetColumn) {
+            const sourceColumn = columns.find((col) =>
+                col.tasks.some((task) => task.id === taskId)
+            );
 
-        const targetColumn = columns.find((col) =>
-            col.tasks.some((task) => task.id === overId)
-        );
+            if (sourceColumn && sourceColumn.id !== targetColumn.id) {
+                await moveTask(taskId, targetColumn.id, targetColumn.tasks.length);
+            }
+        } else {
+            // Check to see if were dropping on another task
+            const sourceColumn = columns.find((col) =>
+                col.tasks.some((task) => task.id === taskId)
+            );
 
+            const targetColumn = columns.find((col) =>
+                col.tasks.some((task) => task.id === overId)
+            );
 
+            if (sourceColumn && targetColumn) {
+                const oldIndex = sourceColumn.tasks.findIndex(
+                    (task) => task.id === taskId
+                );
+
+                const newIndex = targetColumn.tasks.findIndex(
+                    (task) => task.id === overId
+                );
+
+                if (oldIndex !== newIndex) {
+                    await moveTask(taskId, targetColumn.id, newIndex);
+                }
+            }
+        }
     }
 
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <Navbar
-                boardTitle={board?.title}
-                onEditBoard={() => {
-                    setNewTitle(board?.title || "");
-                    setNewColor(board?.color || "");
-                    setIsEditingTitle(true);
-                }}
-                onFilterclick={() => setIsFilterOpen(true)}
-                filterCount={2}
-            />
 
-            <Dialog open={isEditingTitle} onOpenChange={setIsEditingTitle}>
-                <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
-                    <DialogHeader>
-                        <DialogTitle>Edit Board</DialogTitle>
-                        <p className="text-sm text-gray-600">Add a task to the board</p>
-                    </DialogHeader>
+        <>
 
-                    <form action="" className="space-y-4" onSubmit={handleUpdateBoard}>
-                        <div className="space-y-2">
-                            <Label htmlFor="boardTitle" >Board Title</Label>
-                            <Input
-                                id="boardTitle"
-                                value={newTitle}
-                                onChange={(e) => setNewTitle(e.target.value)}
-                                placeholder="Enter board title..."
-                                required
-                            />
-                        </div>
+            <div className="min-h-screen bg-gray-50">
+                <Navbar
+                    boardTitle={board?.title}
+                    onEditBoard={() => {
+                        setNewTitle(board?.title || "");
+                        setNewColor(board?.color || "");
+                        setIsEditingTitle(true);
+                    }}
+                    onFilterclick={() => setIsFilterOpen(true)}
+                    filterCount={2}
+                />
 
-                        <div className="space-y-2">
-                            <Label>Board Color</Label>
-                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                                {[
-                                    "bg-blue-500",
-                                    "bg-green-500",
-                                    "bg-yellow-500",
-                                    "bg-red-500",
-                                    "bg-purple-500",
-                                    "bg-pink-500",
-                                    "bg-indigo-500",
-                                    "bg-gray-500",
-                                    "bg-orange-500",
-                                    "bg-teal-500",
-                                    "bg-cyan-500",
-                                    "bg-emerald-500",
-                                ].map((color, key) => (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        className={`w-8 h-8 rounded-full ${color} ${color === newColor
-                                            ? "ring-2 ring-offset-2 ring-gray-900"
-                                            : ""
-                                            } `}
-                                        onClick={() => setNewColor(color)}
-                                    />
-                                ))}
+                <Dialog open={isEditingTitle} onOpenChange={setIsEditingTitle}>
+                    <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+                        <DialogHeader>
+                            <DialogTitle>Edit Board</DialogTitle>
+                            <p className="text-sm text-gray-600">Add a task to the board</p>
+                        </DialogHeader>
+
+                        <form action="" className="space-y-4" onSubmit={handleUpdateBoard}>
+                            <div className="space-y-2">
+                                <Label htmlFor="boardTitle" >Board Title</Label>
+                                <Input
+                                    id="boardTitle"
+                                    value={newTitle}
+                                    onChange={(e) => setNewTitle(e.target.value)}
+                                    placeholder="Enter board title..."
+                                    required
+                                />
                             </div>
-                        </div>
-                        <div className="flex justify-end space-x-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setIsEditingTitle(false)}
-                            >
-                                Cancel
-                            </Button>
-                            <Button type="submit">Save Changes</Button>
-                        </div>
-                    </form>
 
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-                <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
-                    <DialogHeader>
-                        <DialogTitle>Filter Tasks</DialogTitle>
-                        <p className="text-sm text-gray-600">Filter tasks by priority, assignee, or due date</p>
-                    </DialogHeader>
-
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Priority</Label>
-                            <div className="flex flex-wrap space-x-2">
-                                {["low", "medium", "high"].map((priority, key) => (
-                                    <SelectItem key={key} value={priority}>
-                                        {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                                    </SelectItem>
-                                ))}
+                            <div className="space-y-2">
+                                <Label>Board Color</Label>
+                                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                                    {[
+                                        "bg-blue-500",
+                                        "bg-green-500",
+                                        "bg-yellow-500",
+                                        "bg-red-500",
+                                        "bg-purple-500",
+                                        "bg-pink-500",
+                                        "bg-indigo-500",
+                                        "bg-gray-500",
+                                        "bg-orange-500",
+                                        "bg-teal-500",
+                                        "bg-cyan-500",
+                                        "bg-emerald-500",
+                                    ].map((color, key) => (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            className={`w-8 h-8 rounded-full ${color} ${color === newColor
+                                                ? "ring-2 ring-offset-2 ring-gray-900"
+                                                : ""
+                                                } `}
+                                            onClick={() => setNewColor(color)}
+                                        />
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>Due Date</Label>
-                            <Input type="date" />
-
-                            <div className="flex justify-between pt-4">
-                                <Button type="button" variant={"outline"}>
-                                    Clear Filters
+                            <div className="flex justify-end space-x-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsEditingTitle(false)}
+                                >
+                                    Cancel
                                 </Button>
-                                <Button type="button" onClick={() => setIsFilterOpen(false)}>
-                                    Apply Filters
-                                </Button>
+                                <Button type="submit">Save Changes</Button>
+                            </div>
+                        </form>
+
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                    <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+                        <DialogHeader>
+                            <DialogTitle>Filter Tasks</DialogTitle>
+                            <p className="text-sm text-gray-600">Filter tasks by priority, assignee, or due date</p>
+                        </DialogHeader>
+
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>Priority</Label>
+                                <div className="flex flex-wrap space-x-2">
+                                    {["low", "medium", "high"].map((priority, key) => (
+                                        <SelectItem key={key} value={priority}>
+                                            {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                                        </SelectItem>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Due Date</Label>
+                                <Input type="date" />
+
+                                <div className="flex justify-between pt-4">
+                                    <Button type="button" variant={"outline"}>
+                                        Clear Filters
+                                    </Button>
+                                    <Button type="button" onClick={() => setIsFilterOpen(false)}>
+                                        Apply Filters
+                                    </Button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                    </DialogContent>
+                </Dialog>
 
-            {/* Board Content */}
-            <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
-                {/* Stats */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-4 sm:space-y-0">
-                    <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-                        <div className="text-sm text-gray-600">
-                            <span className="font-medium">Total Tasks: </span>
-                            {columns.reduce((sum, col) => sum + col.tasks.length, 0)}
+                {/* Board Content */}
+                <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
+                    {/* Stats */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-4 sm:space-y-0">
+                        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                            <div className="text-sm text-gray-600">
+                                <span className="font-medium">Total Tasks: </span>
+                                {columns.reduce((sum, col) => sum + col.tasks.length, 0)}
+                            </div>
                         </div>
+
+                        {/* Add task dialog */}
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button className="w-full sm:w-auto">
+                                    <Plus />
+                                    Add Task
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+                                <DialogHeader>
+                                    <DialogTitle>Create New Task</DialogTitle>
+                                    <p className="text-sm text-gray-600">
+                                        Add a task to the board
+                                    </p>
+                                </DialogHeader>
+
+                                <form className="space-y-4" onSubmit={handleCreateTask}>
+                                    <div className="space-y-2">
+                                        <Label>Title *</Label>
+                                        <Input
+                                            id="title"
+                                            name="title"
+                                            placeholder="Enter task title"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Description</Label>
+                                        <Textarea
+                                            id="description"
+                                            name="description"
+                                            placeholder="Enter task description"
+                                            rows={3}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Assignee</Label>
+                                        <Input
+                                            id="assignee"
+                                            name="assignee"
+                                            placeholder="Who should do this?"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>Priority</Label>
+
+                                        <Select name="priority" defaultValue="medium">
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select priority" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {["low", "medium", "high"].map((priority, key) => (
+                                                    <SelectItem key={key} value={priority}>
+                                                        {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>Due Date</Label>
+                                        <Input type="date" id="dueDate" name="dueDate" />
+                                    </div>
+
+                                    <div className="flex justify-end space-x-2 pt-4">
+                                        <Button type="submit">Create Task</Button>
+                                    </div>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
                     </div>
 
-                    {/* Add task dialog */}
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <Button className="w-full sm:w-auto">
-                                <Plus />
-                                Add Task
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
-                            <DialogHeader>
-                                <DialogTitle>Create New Task</DialogTitle>
-                                <p className="text-sm text-gray-600">
-                                    Add a task to the board
-                                </p>
-                            </DialogHeader>
-
-                            <form className="space-y-4" onSubmit={handleCreateTask}>
-                                <div className="space-y-2">
-                                    <Label>Title *</Label>
-                                    <Input
-                                        id="title"
-                                        name="title"
-                                        placeholder="Enter task title"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Description</Label>
-                                    <Textarea
-                                        id="description"
-                                        name="description"
-                                        placeholder="Enter task description"
-                                        rows={3}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Assignee</Label>
-                                    <Input
-                                        id="assignee"
-                                        name="assignee"
-                                        placeholder="Who should do this?"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Priority</Label>
-
-                                    <Select name="priority" defaultValue="medium">
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select priority" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {["low", "medium", "high"].map((priority, key) => (
-                                                <SelectItem key={key} value={priority}>
-                                                    {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Due Date</Label>
-                                    <Input type="date" id="dueDate" name="dueDate" />
-                                </div>
-
-                                <div className="flex justify-end space-x-2 pt-4">
-                                    <Button type="submit">Create Task</Button>
-                                </div>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
-                </div>
-
-                {/* Boards Columns */}
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={rectIntersection}
-                    onDragStart={handleDragStart}
-                    onDragOver={handleDragOver}
-                    onDragEnd={handleDragEnd}
-                >
-                    <div className="flex flex-col lg:flex-row lg:space-x-6 lg:overflow-x-auto
+                    {/* Boards Columns */}
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={rectIntersection}
+                        onDragStart={handleDragStart}
+                        onDragOver={handleDragOver}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <div className="flex flex-col lg:flex-row lg:space-x-6 lg:overflow-x-auto
             lg:pb-6 lg:px-2 lg:-mx-2 lg:[&::-webkit-scrollbar]:h-2
             lg:[&::-webkit-scrollbar-track]:bg-gray-100
             lg:[&::-webkit-scrollbar-thumb]:bg-gray-300 lg:[&::-webkit-scrollbar-thumb]:rounded-full
             space-y-4 lg:space-y-0">
-                        {columns.map((column, key) => (
-                            <DroppableColumn
-                                key={key}
-                                column={column}
-                                onCreateTask={handleCreateTask}
-                                onEditColumn={() => { }}
-                            >
-
-                                <SortableContext
-                                    items={column.tasks.map((task) => task.id)}
-                                    strategy={verticalListSortingStrategy}
+                            {columns.map((column, key) => (
+                                <DroppableColumn
+                                    key={key}
+                                    column={column}
+                                    onCreateTask={handleCreateTask}
+                                    onEditColumn={() => { }}
                                 >
-                                    <div className="space-y-3">
-                                        {column.tasks.map((task, key) => (
-                                            <SortableTask task={task} key={key} />
-                                        ))}
-                                    </div>
-                                </SortableContext>
-                            </DroppableColumn>
-                        ))}
-                    </div>
 
-                </ DndContext>
+                                    <SortableContext
+                                        items={column.tasks.map((task) => task.id)}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        <div className="space-y-3">
+                                            {column.tasks.map((task, key) => (
+                                                <SortableTask task={task} key={key} />
+                                            ))}
+                                        </div>
+                                    </SortableContext>
+                                </DroppableColumn>
+                            ))}
 
-            </main>
-        </div>
+
+                            <DragOverlay>
+                                {activeTask ? <TaskOverlay task={activeTask} /> : null}
+                            </DragOverlay>
+                        </div>
+
+                        <div className="w-full lg:flex-shrink-0 lg:w-80">
+                            <Button
+                                variant="outline"
+                                className="w-full h-full min-h-[200px] border-dashed border-2 text-gray-500 hover:text-gray-700"
+                                onClick={() => setIsCreatingColumn(true)}
+                            >
+                                <Plus />
+                                Add Another List
+                            </Button>
+                        </div>
+
+                    </ DndContext>
+                </main>
+            </div>
+            <Dialog open={isCreatingColumn} onOpenChange={setIsCreatingColumn}>
+                <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+                    <DialogHeader>
+                        <DialogTitle>Create New Column</DialogTitle>
+                        <p className="text-sm text-gray-600">
+                            Add new column to organize your tasks
+                        </p>
+                    </DialogHeader>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
