@@ -3,7 +3,7 @@
 import Navbar from "@/components/navbar";
 import { useBoards } from "@/lib/hooks/useBoards";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -148,7 +148,6 @@ function DroppableColumn({
                                                 ))}
                                             </SelectContent>
                                         </Select>
-
                                     </div>
 
                                     <div className="space-y-2">
@@ -313,7 +312,9 @@ export default function BoardPage() {
         createRealTask,
         columns,
         setColumns,
-        moveTask
+        moveTask,
+        createColumn,
+        updateColumn
     } = useBoard(id);
 
 
@@ -324,10 +325,15 @@ export default function BoardPage() {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [isCreatingColumn, setIsCreatingColumn] = useState(false);
     const [isEditingColumn, setIsEditingColumn] = useState(false);
+
     const [newColumnTitle, setNewColumnTitle] = useState("");
-
     const [activeTask, setActiveTask] = useState<Task | null>(null);
+    const [editingColumnTitle, setEditingColumnTitle] = useState("");
+    const [editingColumn, setEditingColumn] = useState<ColumnWithTasks | null>(
+        null
+    );
 
+    const [filters, setFilters] = useState<Filters>()
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -336,6 +342,24 @@ export default function BoardPage() {
             },
         })
     );
+
+    function handleFilterChange(
+        type: "priority" | "assignee" | "dueDate",
+        value: string | string[] | null
+    ) {
+        setFilters((prev) => ({
+            ...prev,
+            [type]: value,
+        }));
+    }
+
+    function clearFilters() {
+        setFilters({
+            priority: [] as string[],
+            assignee: [] as string[],
+            dueDate: null as string | null,
+        });
+    }
 
 
     async function handleUpdateBoard(e: React.FormEvent) {
@@ -489,6 +513,35 @@ export default function BoardPage() {
         }
     }
 
+    async function handleCreateColumn(e: React.FormEvent) {
+        e.preventDefault();
+
+        if (newColumnTitle.trim()) {
+            await createColumn(newColumnTitle.trim());
+
+            setNewColumnTitle("");
+            setIsCreatingColumn(false);
+        }
+    }
+
+    async function handleUpdateColumn(e: React.FormEvent) {
+        e.preventDefault();
+
+        if (!editingColumnTitle.trim() || !editingColumn) return;
+
+        await updateColumn(editingColumn.id, editingColumnTitle.trim());
+
+        setEditingColumnTitle("");
+        setIsEditingColumn(false);
+        setEditingColumn(null);
+    }
+
+    function handleEditColumn(column: ColumnWithTasks) {
+        setIsEditingColumn(true);
+        setEditingColumn(column);
+        setEditingColumnTitle(column.title);
+    }
+
 
     return (
 
@@ -579,12 +632,20 @@ export default function BoardPage() {
                         <div className="space-y-4">
                             <div className="space-y-2">
                                 <Label>Priority</Label>
-                                <div className="flex flex-wrap space-x-2">
-                                    {["low", "medium", "high"].map((priority, key) => (
-                                        <SelectItem key={key} value={priority}>
-                                            {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                                        </SelectItem>
-                                    ))}
+
+                                <div className="flex flex-wrap gap-2">
+                                    <Select name="priority" defaultValue="medium">
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select priority" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {["low", "medium", "high"].map((priority, key) => (
+                                                <SelectItem key={key} value={priority}>
+                                                    {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
 
@@ -708,7 +769,7 @@ export default function BoardPage() {
                                     key={key}
                                     column={column}
                                     onCreateTask={handleCreateTask}
-                                    onEditColumn={() => { }}
+                                    onEditColumn={handleEditColumn}
                                 >
 
                                     <SortableContext
@@ -731,6 +792,7 @@ export default function BoardPage() {
                         </div>
 
                         <div className="w-full lg:flex-shrink-0 lg:w-80">
+                            <br />
                             <Button
                                 variant="outline"
                                 className="w-full h-full min-h-[200px] border-dashed border-2 text-gray-500 hover:text-gray-700"
@@ -744,6 +806,8 @@ export default function BoardPage() {
                     </ DndContext>
                 </main>
             </div>
+
+
             <Dialog open={isCreatingColumn} onOpenChange={setIsCreatingColumn}>
                 <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
                     <DialogHeader>
@@ -752,8 +816,68 @@ export default function BoardPage() {
                             Add new column to organize your tasks
                         </p>
                     </DialogHeader>
+                    <form className="space-y-4" onSubmit={handleCreateColumn}>
+                        <div className="space-y-2">
+                            <Label>Column Title</Label>
+                            <Input
+                                id="columnTitle"
+                                value={newColumnTitle}
+                                onChange={(e) => setNewColumnTitle(e.target.value)}
+                                placeholder="Enter column title..."
+                                required
+                            />
+                        </div>
+                        <div className="space-x-2 flex justify-end">
+                            <Button
+                                type="button"
+                                onClick={() => setIsCreatingColumn(false)}
+                                variant="outline"
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit">Create Column</Button>
+                        </div>
+                    </form>
                 </DialogContent>
             </Dialog>
+
+            <Dialog open={isEditingColumn} onOpenChange={setIsEditingColumn}>
+                <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+                    <DialogHeader>
+                        <DialogTitle>Edit Column</DialogTitle>
+                        <p className="text-sm text-gray-600">
+                            Update the title of your column
+                        </p>
+                    </DialogHeader>
+                    <form className="space-y-4" onSubmit={handleUpdateColumn}>
+                        <div className="space-y-2">
+                            <Label>Column Title</Label>
+                            <Input
+                                id="columnTitle"
+                                value={editingColumnTitle}
+                                onChange={(e) => setEditingColumnTitle(e.target.value)}
+                                placeholder="Enter column title..."
+                                required
+                            />
+                        </div>
+                        <div className="space-x-2 flex justify-end">
+                            <Button
+                                type="button"
+                                onClick={() => {
+                                    setIsEditingColumn(false);
+                                    setEditingColumnTitle("");
+                                    setEditingColumn(null);
+                                }}
+                                variant="outline"
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit">Edit Column</Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
         </>
     );
 }
