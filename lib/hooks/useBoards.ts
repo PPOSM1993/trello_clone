@@ -187,7 +187,6 @@ export function useBoard(boardId: string) {
         }
     }
 
-
     async function createColumn(title: string) {
         if (!board || !user) throw new Error("Board not loaded");
 
