@@ -548,6 +548,32 @@ export default function BoardPage() {
         setEditingColumnTitle(column.title);
     }
 
+    const filteredColumns = columns.map((column) => ({
+        ...column,
+        tasks: column.tasks.filter((task) => {
+            // Filter by priority
+            if (
+                filters.priority.length > 0 &&
+                !filters.priority.includes(task.priority)
+            ) {
+                return false;
+            }
+
+            // Filter by due date
+
+            if (filters.dueDate && task.due_date) {
+                const taskDate = new Date(task.due_date).toDateString();
+                const filterDate = new Date(filters.dueDate).toDateString();
+
+                if (taskDate !== filterDate) {
+                    return false;
+                }
+            }
+
+            return true;
+        }),
+    }));
+
 
     return (
 
@@ -562,7 +588,11 @@ export default function BoardPage() {
                         setIsEditingTitle(true);
                     }}
                     onFilterclick={() => setIsFilterOpen(true)}
-                    filterCount={2}
+                    filterCount={Object.values(filters).reduce(
+                        (count, v) =>
+                            count + (Array.isArray(v) ? v.length : v !== null ? 1 : 0),
+                        0
+                    )}
                 />
 
                 <Dialog open={isEditingTitle} onOpenChange={setIsEditingTitle}>

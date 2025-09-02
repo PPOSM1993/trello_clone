@@ -21,11 +21,20 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 
+import {
+    Dialog,
+    DialogHeader,
+    DialogContent,
+    DialogTitle,
+} from "@/components/ui/dialog";
+
 export default function DashboardPage() {
 
     const { user } = useUser();
     const { createBoard, boards, loading, error } = useBoards();
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+    const [showUpgradeDialog, setShowUpgradeDialog] = useState<boolean>(false);
 
 
     const handleCreateBoard = async () => {
@@ -169,13 +178,13 @@ export default function DashboardPage() {
                                         <List />
                                     </Button>
                                 </div>
-                                <Button variant="outline" size="sm">
+                                <Button variant="outline" size="sm" onClick={() => setIsFilterOpen(true)}>
                                     <Filter />
                                     Filter
                                 </Button>
 
-                                <Button onClick={handleCreateBoard} size="sm">
-                                    <Plus />
+                                <Button onClick={handleCreateBoard} size="sm" className="bg-black">
+                                    <Plus className="text-white" />
                                     Create Board
                                 </Button>
                             </div>
@@ -290,7 +299,17 @@ export default function DashboardPage() {
                 </main>
 
                 {/* Filter Dialog */}
+                <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                    <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+                        <DialogHeader>
+                            <DialogTitle>Filter Boards</DialogTitle>
 
+                            <p className="text-sm text-gray-600">
+                                Filter boards by title, date, or task count.
+                            </p>
+                        </DialogHeader>
+                    </DialogContent>
+                </Dialog>
 
             </div>
         </>
