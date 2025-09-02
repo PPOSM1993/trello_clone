@@ -329,19 +329,15 @@ export default function BoardPage() {
     const [newColumnTitle, setNewColumnTitle] = useState("");
     const [activeTask, setActiveTask] = useState<Task | null>(null);
     const [editingColumnTitle, setEditingColumnTitle] = useState("");
-    const [editingColumn, setEditingColumn] = useState<ColumnWithTasks | null>(
-        null
-    );
+    const [editingColumn, setEditingColumn] = useState<ColumnWithTasks | null>(null);
 
-    const [filters, setFilters] = useState<Filters>()
 
-    const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8, // 👈 aquí sí va
-            },
-        })
-    );
+    const [filters, setFilters] = useState({
+        priority: [] as string[],
+        assignee: [] as string[],
+        dueDate: null as string | null,
+    });
+
 
     function handleFilterChange(
         type: "priority" | "assignee" | "dueDate",
@@ -352,6 +348,16 @@ export default function BoardPage() {
             [type]: value,
         }));
     }
+
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8, // 👈 aquí sí va
+            },
+        })
+    );
+
 
     function clearFilters() {
         setFilters({
@@ -626,43 +632,64 @@ export default function BoardPage() {
                     <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
                         <DialogHeader>
                             <DialogTitle>Filter Tasks</DialogTitle>
-                            <p className="text-sm text-gray-600">Filter tasks by priority, assignee, or due date</p>
+                            <p className="text-sm text-gray-600">Filter Tasks by priority, assignee, or due date</p>
                         </DialogHeader>
 
                         <div className="space-y-4">
                             <div className="space-y-2">
                                 <Label>Priority</Label>
-
                                 <div className="flex flex-wrap gap-2">
-                                    <Select name="priority" defaultValue="medium">
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select priority" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {["low", "medium", "high"].map((priority, key) => (
-                                                <SelectItem key={key} value={priority}>
-                                                    {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Due Date</Label>
-                                <Input type="date" />
-
-                                <div className="flex justify-between pt-4">
-                                    <Button type="button" variant={"outline"}>
-                                        Clear Filters
-                                    </Button>
-                                    <Button type="button" onClick={() => setIsFilterOpen(false)}>
-                                        Apply Filters
-                                    </Button>
+                                    {["low", "medium", "high"].map((priority, key) => (
+                                        <Button
+                                            onClick={() => {
+                                                const newPriorities =
+                                                    filters.priority.includes(
+                                                        priority
+                                                    )
+                                                        ? filters.priority.filter((p) => p !== priority)
+                                                        : [...filters.priority, priority];
+                                                handleFilterChange("priority", newPriorities);
+                                            }}
+                                            key={key}
+                                            variant={
+                                                filters.priority.includes(priority)
+                                                    ? "default"
+                                                    : "outline"
+                                            }
+                                            size="sm"
+                                        >
+                                            {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                                        </Button>
+                                    ))}
                                 </div>
                             </div>
                         </div>
+
+                        <div className="space-y-2">
+                            <Label>Due Date</Label>
+                            <Input
+                                type="date"
+                                value={filters.dueDate || ""}
+                                onChange={(e) =>
+                                    handleFilterChange("dueDate", e.target.value || null)
+                                }
+                            />
+                        </div>
+
+                        <div className="flex justify-between pt-4">
+                            <Button
+                                type="button"
+                                variant={"outline"}
+                                onClick={clearFilters}
+                            >
+                                Clear Filters
+                            </Button>
+                            <Button type="button" onClick={() => setIsFilterOpen(false)}>
+                                Apply Filters
+                            </Button>
+                        </div>
+
+
                     </DialogContent>
                 </Dialog>
 
