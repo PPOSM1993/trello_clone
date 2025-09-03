@@ -10,11 +10,9 @@ export function useBoards() {
 
     const { user } = useUser();
     const { supabase } = useSupabase();
-
     const [boards, setBoards] = useState<Board[]>([]);
     const [loading, setLoading] = useState(true);
     const [columns, setColumns] = useState<ColumnWithTasks[]>([]);
-
     const [error, setError] = useState<string | null>(null);
 
 

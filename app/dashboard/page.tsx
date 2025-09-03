@@ -29,12 +29,16 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@radix-ui/react-label";
 import { Board } from "@/lib/supabase/models";
+import { usePlan } from "@/lib/context/Plancontext";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
 
     const { user } = useUser();
     const { createBoard, boards, loading, error } = useBoards();
+    const router = useRouter();
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const { hasProPlan, hasEnterprisePlan, isFreeUser } = usePlan();
     const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
     const [showUpgradeDialog, setShowUpgradeDialog] = useState<boolean>(false);
 
@@ -50,15 +54,47 @@ export default function DashboardPage() {
         }
     });
 
-    const filteredBoards = boards.filter((board: Board) => {
+    const canCreateBoard = !isFreeUser && boards.length < 1;
+
+    const boardsWithTaskCount = boards.map((board: Board) => ({
+        ...board,
+        taskCount: 0, // This would need to be calculated from actual data
+    }));
+
+    const filteredBoards = boardsWithTaskCount.filter((board: Board) => {
         const matchesSearch = board.title
-        .toLowerCase()
-        .includes(filters.search.toLowerCase());
-        console.log(filters.search);
-        return matchesSearch;
+            .toLowerCase()
+            .includes(filters.search.toLowerCase());
+
+        const matchesDateRange =
+            (!filters.dateRange.start ||
+                new Date(board.created_at) >= new Date(filters.dateRange.start)) &&
+            (!filters.dateRange.end ||
+                new Date(board.created_at) <= new Date(filters.dateRange.end));
+
+        return matchesSearch && matchesDateRange;
     });
 
+    function clearFilters() {
+        setFilters({
+            search: "",
+            dateRange: {
+                start: null as string | null,
+                end: null as string | null,
+            },
+            taskCount: {
+                min: null as number | null,
+                max: null as number | null,
+            },
+        });
+    }
+
+
     const handleCreateBoard = async () => {
+        if (!canCreateBoard) {
+            setShowUpgradeDialog(true);
+            return;
+        }
         await createBoard({ title: "New Board" });
     };
 
@@ -83,10 +119,7 @@ export default function DashboardPage() {
                             Welcome back, {user?.firstName ?? user?.emailAddresses[0].emailAddress}!
                         </h1>
                         <p className="text-gray-600 py-2">Here's what's happening  with your boards today</p>
-                        <Button className="w-full sm:w-auto" onClick={handleCreateBoard}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create Board
-                        </Button>
+
                     </div>
 
                     {/* Seats */}
@@ -176,6 +209,12 @@ export default function DashboardPage() {
                                     Your Boards
                                 </h2>
                                 <p className="text-gray-600">Manage your boards and tasks</p>
+                                {isFreeUser && (
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Free plan: {boards.length}/1 boards used
+                                    </p>
+                                )}
+
                             </div>
 
                             <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
@@ -399,8 +438,7 @@ export default function DashboardPage() {
                             </div>
                         </div>
                         <div className="flex flex-col sm:flex-row justify-between pt-4 space-y-2 sm:space-y-0 sm:space-x-2">
-
-                            <Button variant="outline">
+                            <Button variant="outline" onClick={clearFilters}>
                                 Clear Filters
                             </Button>
                             <Button onClick={() => setIsFilterOpen(false)}>
@@ -410,6 +448,23 @@ export default function DashboardPage() {
                         </div>
                     </DialogContent>
                 </Dialog>
+
+                <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+                    <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+                        <DialogHeader>
+                            <DialogTitle>Upgrade to Create More Boards</DialogTitle>
+                            <p className="text-sm text-gray-600">
+                                Free users can only create one board. Upgrade to Pro or Enterprise
+                                to create unlimited boards.
+                            </p>
+                        </DialogHeader>
+                        <div className="flex justify-end space-x-4 pt-4">
+                            <Button variant="outline" onClick={() => setShowUpgradeDialog(false)}>Cancel</Button>
+                            <Button onClick={() => router.push("/pricing")}>View Plans</Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
 
             </div>
         </>
