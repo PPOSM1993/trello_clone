@@ -41,7 +41,6 @@ import {
 
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-
 function DroppableColumn({
     column,
     children,
@@ -300,8 +299,6 @@ function TaskOverlay({ task }: { task: Task }) {
     );
 }
 
-
-
 export default function BoardPage() {
     const { id } = useParams(); // ✅ sin tipos
     //const { id } = useParams<{ id: string }>();
@@ -316,7 +313,6 @@ export default function BoardPage() {
         createColumn,
         updateColumn
     } = useBoard(id);
-
 
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [newTitle, setNewTitle] = useState("");
@@ -338,7 +334,6 @@ export default function BoardPage() {
         dueDate: null as string | null,
     });
 
-
     function handleFilterChange(
         type: "priority" | "assignee" | "dueDate",
         value: string | string[] | null
@@ -349,7 +344,6 @@ export default function BoardPage() {
         }));
     }
 
-
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -358,7 +352,6 @@ export default function BoardPage() {
         })
     );
 
-
     function clearFilters() {
         setFilters({
             priority: [] as string[],
@@ -366,7 +359,6 @@ export default function BoardPage() {
             dueDate: null as string | null,
         });
     }
-
 
     async function handleUpdateBoard(e: React.FormEvent) {
         e.preventDefault();
@@ -409,7 +401,6 @@ export default function BoardPage() {
                 (formData.get("priority") as "low" | "medium" | "high") || "medium",
         };
 
-
         if (taskData.title.trim()) {
             await createTask(taskData);
 
@@ -419,7 +410,6 @@ export default function BoardPage() {
             if (trigger) trigger.click();
         }
     }
-
 
     function handleDragStart(event: DragStartEvent) {
         const taskId = event.active.id as string;
@@ -431,8 +421,6 @@ export default function BoardPage() {
             setActiveTask(task);
         }
     }
-
-
 
     function handleDragOver(event: DragOverEvent) {
         const { active, over } = event;

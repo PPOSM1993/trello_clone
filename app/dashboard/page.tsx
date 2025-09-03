@@ -50,13 +50,39 @@ export default function DashboardPage() {
         }
     });
 
-    const filteredBoards = boards.filter((board: Board) => {
+    const boardsWithTaskCount = boards.map((board: Board) => ({
+        ...board,
+        taskCount: 0, // This would need to be calculated from actual data
+    }));
+
+    const filteredBoards = boardsWithTaskCount.filter((board: Board) => {
         const matchesSearch = board.title
-        .toLowerCase()
-        .includes(filters.search.toLowerCase());
-        console.log(filters.search);
-        return matchesSearch;
+            .toLowerCase()
+            .includes(filters.search.toLowerCase());
+
+        const matchesDateRange =
+            (!filters.dateRange.start ||
+                new Date(board.created_at) >= new Date(filters.dateRange.start)) &&
+            (!filters.dateRange.end ||
+                new Date(board.created_at) <= new Date(filters.dateRange.end));
+
+        return matchesSearch && matchesDateRange;
     });
+
+    function clearFilters() {
+        setFilters({
+            search: "",
+            dateRange: {
+                start: null as string | null,
+                end: null as string | null,
+            },
+            taskCount: {
+                min: null as number | null,
+                max: null as number | null,
+            },
+        });
+    }
+
 
     const handleCreateBoard = async () => {
         await createBoard({ title: "New Board" });
@@ -399,8 +425,7 @@ export default function DashboardPage() {
                             </div>
                         </div>
                         <div className="flex flex-col sm:flex-row justify-between pt-4 space-y-2 sm:space-y-0 sm:space-x-2">
-
-                            <Button variant="outline">
+                            <Button variant="outline" onClick={clearFilters}>
                                 Clear Filters
                             </Button>
                             <Button onClick={() => setIsFilterOpen(false)}>
